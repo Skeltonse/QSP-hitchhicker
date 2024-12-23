@@ -7,11 +7,11 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import time 
+import tikzplotlib
 
 '''FANCY PREAMBLE TO MAKE BRAKET PACKAGE WORK NICELY'''
 plt.rc('text', usetex=True)
 plt.rc('text.latex', preamble=r'\usepackage{braket}')
-#matplotlib.verbose.level = 'debug-annoying'
 
 
 '''LOCAL IMPORTS'''
@@ -41,7 +41,7 @@ def ab_PROCESS(a, b, n,  theta=np.linspace(-np.pi,np.pi, 100), tol=10**(-16), pl
     calcFc: length 4n+1 np array with coefficients of the Fejer input polynomial $1-a^2-b^2$
     calF: calF: np array with values of the Fejer input polynomial for each value in \theta
     """
-    ###GET RID OF ANY INCONVENIANT SMALL COEFFICIENTS###
+    ###GET RID OF ANY INCONSEQUENTIALLY SMALL COEFFICIENTS###
     coeffcutoff=10**(-16)
     while abs(a[0])<coeffcutoff and abs(b[0])<coeffcutoff:
         a=a[1:2*n]
@@ -106,7 +106,7 @@ def cd_PROCESS(gamma, a, b, n, theta=np.linspace(-np.pi,np.pi, 100), tol=10**(-1
         ax.plot(theta, np.real(lpf.LAUR_POLY_BUILD(c, n, np.exp(1j*theta))), label=r'$\gamma_{re}(z)$')
         ax.plot(theta, np.real(lpf.LAUR_POLY_BUILD(d, n, np.exp(1j*theta))), label=r'$\gamma_{imag}(z)$')
         ax.set_xlabel(r"$\theta$")
-        ax.legend()
+        
     else:
         problems=np.where(abs(Fcheck-1)>tol)
         if problems[0]!=[]:
@@ -131,10 +131,10 @@ def F_CHECK(calFc, n, theta=np.linspace(-np.pi,np.pi, 100), tol=10**(-16),  rtn=
     calF=lpf.LAUR_POLY_BUILD(calFc, n, np.exp(theta*1j))
     if any(abs(np.imag(calF))>tol):
         print(r'Warning'+fcnname+ 'has imaginary terms')
-        print(max(abs(np.imag(calF))))
+        print("largest term norm is", max(abs(np.imag(calF))))
     elif any(np.real(calF)<=0):
         print(r'Warning, '+ fcnname + ' has negative real terms')
-        print(min((np.real(calF))))
+        print("largest negative term norm is", min((np.real(calF))))
     if rtn=='fcn_vals':
         return calF
     else:
@@ -165,12 +165,11 @@ def GAMMA_PROCESSING(gamma, n, calF, theta=np.linspace(-np.pi,np.pi, 100), tol=1
     alpha_list=np.real((calF/calFp))  
     
     if plots==True:
-        #ax.plot(theta, np.real(calF), label='og function to solve', **plt_kwargs)
+        if ax is None:
+            ax = plt.gca()
         ax.plot(theta, np.real(calFp), label=r'$\gamma(z)\gamma(1/z)$', **plt_kwargs)
         ax.plot(theta, np.real(calFp)*np.mean(alpha_list), label='normalized solution', **plt_kwargs)
-        ax.legend()
         ax.set_title(r"Compare Wilson solution guess to $1-|\mathcal{A}|^2$")
-    #return np.real(calFp)*np.mean(alpha_list), np.mean(alpha_list)
     return np.mean(alpha_list)
               
 def GAMMA_CHECK(gamma,  n, calF, theta=np.linspace(-np.pi,np.pi, 100), tol=10**(-16), show='fcns', ax=None, **plt_kwargs):
@@ -197,27 +196,25 @@ def GAMMA_CHECK(gamma,  n, calF, theta=np.linspace(-np.pi,np.pi, 100), tol=10**(
 
     if any(abs(np.imag(calFt))>tol):
         print(r'Warning, $\mathcal{F}$ has imaginary terms')
-        print(max(abs(np.imag(calFt))))
+        print("largest term norm is", max(abs(np.imag(calFt))))
     elif any(np.real(calFt)<=0):
         print(r'Warning, $\mathcal{F}$ has negative real terms')
-        print(min(np.real(calFt)))
+        print("largest negative term norm is", min(np.real(calFt)))
         
     if show=='fcns':
-        #ax.plot(theta, np.real(calF), label=r'$\mathcal{F}(z)$', **plt_kwargs)
+        if ax is None:
+            ax = plt.gca()
         ax.plot(theta, np.real(calFt), label=r'$\gamma(z)\gamma(1/z)$ ', **plt_kwargs)
-        #ax.plot(theta, np.real(lpf.LAUR_POLY_BUILD(gamma, n, np.exp(theta*1j))), label=r'$\gamma_{re}(z)$ ', **plt_kwargs)
-        #ax.plot(theta, np.imag(lpf.LAUR_POLY_BUILD(gamma, n, np.exp(theta*1j))), label=r'$\gamma_{im}(z)$ ', **plt_kwargs)
         
-        print(calFt)
-        ax.legend()
         ax.set_title(r'Compare $\gamma$ to $\mathcal{F}$')
     elif show=='diff':
+        if ax is None:
+            ax = plt.gca()
         ax.plot( np.real(calF)-np.real(calFt), **plt_kwargs)
         ax.set_title(r'Difference between $\gamma$ and $\mathcal{F}')
     return
     
 
-####FIND THE QSP CIRCUIT###
 '''BEGIN FINDING THE SOLUTION: '''
 def PARAMETER_FIND(czlist, szlist,n, data,epsi=10**(-14), defconv='ad', ifdecomp=True, tDict={}, plots=False):
     """
@@ -244,7 +241,6 @@ def PARAMETER_FIND(czlist, szlist,n, data,epsi=10**(-14), defconv='ad', ifdecomp
     calF: calF: np array with values of the Fejer input polynomial for each value in \theta
     """
     ###BOUNDED ERROR ONLY: DEFIN THE PRECISION OF THE FEJER STEP###
-    #epsifejer=epsi/(2*n**2+5*n+1)/128
     epsifejer=epsi
 
     if plots==True:
@@ -253,11 +249,9 @@ def PARAMETER_FIND(czlist, szlist,n, data,epsi=10**(-14), defconv='ad', ifdecomp
         axeschoice=[None, None]
 
     ###CHECK UNPUT POLYNOMIALS AND SOLVE THE COMPLETION STEP###
-    
     a, b, calFc, calF, n=ab_PROCESS(czlist, szlist, n,  theta=data, tol=epsi, plots=plots,  ax=axeschoice[0])
-    print("n is ", n)
     t0=time.perf_counter()
-    gammaW, itW, initgamma, nu=wm.WILSON_LOOP_WDATA(np.real(calFc), 2*n, nu=epsifejer, init="Wilson", datatype='float')
+    gammaW, itW, initgamma, nu, Ttilde=wm.WILSON_LOOP_WCHECK(np.real(calFc), 2*n, nu=epsifejer, init="Wilson", datatype='float')
     t1=time.perf_counter()
     c, d, probflag=cd_PROCESS(gammaW, a, b,n, tol=epsi,plots=plots, ax=axeschoice[1])
     
@@ -265,20 +259,12 @@ def PARAMETER_FIND(czlist, szlist,n, data,epsi=10**(-14), defconv='ad', ifdecomp
         GAMMA_CHECK(gammaW,  n, calF, theta=data, tol=10**(-14), show='fcns', ax=axeschoice[0])
     else:
         GAMMA_CHECK(gammaW,  n, calF, theta=data, tol=10**(-14), show='none',ax=axeschoice[0])
-
-    
-
-    ###IF THE SOLUTION FAILS, TRY ANOTHER INITIAL GUESS###
-    if probflag==1:
-        print('need to try another guess')
-        gammaW, itW, initgamma, nu=wm.WILSON_LOOP_WDATA(np.real(calFc), 2*n,  nu=epsifejer, init="Wilson2", datatype='float')
-        c, d, probflag=cd_PROCESS(gammaW, a, b,n, tol=epsi, plots=plots, ax=axeschoice[1])
-        t1=time.perf_counter()
        
-    print('time to find solution', t1-t0)
     if plots==True:
+        axeschoice[0].legend()
+        axeschoice[1].legend()
         plt.show()
-    solDict={'soltime': t1-t0, 'solit':itW,'degree':n ,'a':a, 'b':b,  'c': c, 'd': d, 'gamma': gammaW, 'initialguess':initgamma, 'wilsontol': nu, 'rerunflag':probflag}
+    solDict={'soltime': t1-t0, 'solit':itW,'degree':n ,'a':a, 'b':b,  'c': c, 'd': d, 'gamma': gammaW, 'initialguess':initgamma, 'wilsontol': nu, 'rerunflag':probflag, "Ttilde": Ttilde}
     tDict.update(solDict)
     
     if ifdecomp==False:
@@ -311,9 +297,7 @@ def NORM_EXTRACT(a, b, c, d, n, data, epsi):
     """
     ftestreal=lpf.LAUR_POLY_BUILD(a, n, np.exp(1j*data))
     ftestimag=lpf.LAUR_POLY_BUILD(b, n, np.exp(1j*data))
-    
-    #Plist, Qlist, E0=BUILD_PLIST(a, b, d, c, n, dofourier=False)
-    #Plist, Qlist, E0=UNIFY_PLIST(a, b, c, d, n, epsi/(2*n+1)/16/np.pi)
+
     Plist, Qlist, E0=BUILD_PLIST(a, b, c, d, n)
     Wlist=Ep_PLOT(Plist, Qlist, E0,n, a, b, data, just_vals=True)
     
@@ -348,7 +332,7 @@ def LS_FIT(x, a, b):
 
 def LS2_FIT(x, a, b, c):
     '''
-    simple linear function for least squares fit. In LaTeX: $y=bxâ+c$
+    simple polynomial function for least squares fit. In LaTeX: $y=bx^a+c$
     inputs + output are all floats
     '''
     y=b*x**a+c

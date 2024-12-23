@@ -32,16 +32,6 @@ def BUILD_C(a, b, c, d, n, dofourier=False):
     for i in range(0, 2*n+1):
         Ci[:, :, 2*i]=C[:, :, i]
 
-    # if dofourier==True:
-    #     fdata=np.linspace(0, 2*np.pi, 200)
-    #     Flist=np.zeros([2, 2, 200], dtype=complex)
-    #     Flist=lpf.LAUR_POLY_BUILD(Ci, 2*n, np.exp(1j*fdata))
-
-    #     Ci=fftn(Flist, s=[4*n+1], axes=(2) )
-        
-    # small_inds=np.where(abs(Ci)<10**(-14))
-    # Ci[small_inds]=0
-
     return Ci
 
 def BUILD_PQCi(C, m):
@@ -57,10 +47,8 @@ def BUILD_PQCi(C, m):
     Cn: 2x2x2m-1 np array, storing all the coefficients of '$F^{m-1}(z)$ 
     """
     Pun=C[:, :, 2*m].T.conj()@C[:, :, 2*m]
-    # Qun=C[:, :, 0].T.conj()@C[:, :, 0]
     P=Pun/np.trace(Pun)
     Q=np.identity(2)-P
-    # Q=Qun/np.trace(Qun)
     
     Cn=np.zeros([2, 2, 2*m-1], dtype=complex)
     for i in range(0, 2*m-1):
@@ -84,18 +72,13 @@ def PROJECTOR_CHECK(M, epsi):
     cprob=np.where(np.imag(evals)>epsi)[0]
     sol=np.where(np.real(evals)>epsi)[0]
     
-    if cprob.size>0:
-           print("warning, eigenvales have complex part", print(np.imag(evals)))
-    if len(sol)>1:
-           print("warning, M not epsilon-close to a projector")
-
     import_vec=evecs[:,sol[0]].reshape(2, 1)
     P=import_vec@np.conj(import_vec).T
     
     return P
 
     
-def PROJECTIFY_PQCi(P, C, epsi, m, C2):
+def PROJECTIFY_PQCi(P, C, epsi, m,):
     """
     Finds a projector epsilon-close to a given matrix.
 
@@ -104,7 +87,7 @@ def PROJECTIFY_PQCi(P, C, epsi, m, C2):
     C: 2x2x 2m+1 np array, coefficient list of 'intermediate' matrix-valued function $F^{m}(z)$ in the decomposition step
     epsi: float, the required precision of the solution
     m: float, the degree of the Laurent polynomial that C builds
-    C2: ???
+    
     """
     
     P1=PROJECTOR_CHECK(P, epsi)
@@ -133,13 +116,11 @@ def UNIFY_PLIST(a, b, c, d, n, epsi):
     Qlist=np.zeros([2, 2, 2*n], dtype=complex)
     
     Ci=BUILD_C(a, b, c, d, n)
-
-    #Cimax=max(mf.OPNORM(Ci[:, :, 0]), mf.OPNORM(Ci[:, :, -1]))
     
     for l in range(0,2*n):
         m=2*n-l
         P, Q, Cinext=BUILD_PQCi(Ci, m)
-        P1, Q1, Ci1=PROJECTIFY_PQCi(P,Ci, epsi,m, epsi)
+        P1, Q1, Ci1=PROJECTIFY_PQCi(P,Ci, epsi,m)
         
         Plist[:, :,m-1]=P1
         Qlist[:, :, m-1]=Q1
@@ -215,17 +196,16 @@ def Ep_PLOT(Plist, Qlist, E0, n, czlist, szlist, theta, ax=None, just_vals=False
     for t, th in enumerate(theta):
         Eplist[t]=Ep_CALL(np.exp(1j*th/2), Plist, Qlist, E0, n)
     fl=1j*lpf.LAUR_POLY_BUILD(szlist, n, np.exp(1j*theta))+lpf.LAUR_POLY_BUILD(czlist, n, np.exp(1j*theta))
-    if ax is None:
-        ax = plt.gca()
 
     if just_vals==True:
         return Eplist
-    ax.plot(theta, np.real(fl),label=r'$\mathcal{A}_{Re}(\theta)$', marker='.', **plt_kwargs)
-    ax.plot(theta, np.real(Eplist),  linewidth=1, label=r'$E_p(\theta/2)_{Re}$', **plt_kwargs)
-    ax.plot(theta, np.imag(fl),label=r'$\mathcal{A}_{Im}(\theta)$',  marker='.',**plt_kwargs)
-    ax.plot(theta, np.imag(Eplist),  linewidth=1, label=r'$E_p(\theta/2)_{Im}$', **plt_kwargs)
-    ax.legend()
-    ax.set_title(r'plots for $f(\theta)$, $E_p(e^{i\theta/2})$')
+    else:
+        ax.plot(theta, np.real(fl),label=r'$\mathcal{A}_{Re}(\theta)$', marker='.', **plt_kwargs)
+        ax.plot(theta, np.real(Eplist),  linewidth=1, label=r'$E_p(\theta/2)_{Re}$', **plt_kwargs)
+        ax.plot(theta, np.imag(fl),label=r'$\mathcal{A}_{Im}(\theta)$',  marker='.',**plt_kwargs)
+        ax.plot(theta, np.imag(Eplist),  linewidth=1, label=r'$E_p(\theta/2)_{Im}$', **plt_kwargs)
+        ax.legend()
+        ax.set_title(r'plots for $f(\theta)$, $E_p(e^{i\theta/2})$')
     return Eplist
 
 def SU2_CHECK(a, b, c, d, n, test=np.exp(1j*np.pi/6)):

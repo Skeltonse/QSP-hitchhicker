@@ -4,7 +4,7 @@ using SpecialFunctions
 using Plots
 
 ####specify inputs (maybe eventually depreciate)
-epsi=10^(-4) #to match Dong et Al. 21'
+epsi=10^(-14) #to match Dong et Al. 21'
 t=30
 filename="hsim_coeffs_epsi_" * string(epsi) * "_t_" * string(t) * ".csv"
 ifsave=true

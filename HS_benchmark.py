@@ -5,59 +5,49 @@ import os
 import csv
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib as mpl
+# mpl.use("pgf")
+
 from scipy.optimize import least_squares, curve_fit
 import time
 import pickle
-
+import tikzplotlib
 
 '''LOCAL IMPORTS'''
 import functions.laur_poly_fcns as lpf 
-from functions.matrix_inverse import CHEBY_INV_COEFF_ARRAY
 import solvers.Wilson_method as wm
 from simulators.projector_calcs import BUILD_PLIST, Ep_CALL, Ep_PLOT, SU2_CHECK
-from simulators.angle_calcs import PROJ_TO_ANGLE, Wx_TO_R, W_PLOT, PAULI_CHECK, W_CALL, HAAHR_PLOT
-from simulators.qet_sim import COMPLEX_QET_SIM, COMPLEX_QET_SIM2, QET_MMNT
 import simulators.matrix_fcns as mf
-import simulators.unitary_calcs as uc
 import parameter_finder as pf
+
+'''FANCY PREAMBLE TO MAKE BRAKET PACKAGE WORK NICELY'''
+plt.rcParams.update({'text.usetex': True,'font.family': 'serif',})
+plt.rc('text', usetex=True)
+plt.rc('text.latex', preamble=r'\usepackage{braket}')
+
+'''DEFINE THE FIGURE AND DOMAIN'''
+import matplotlib as mpl
+mpl.rcParams.update(mpl.rcParamsDefault)
+plt.rcParams['font.size'] = 12
+fsz=14
+pts=500
+theta=np.linspace(-np.pi,np.pi,pts)
+xdata=np.cos(theta)
 
 '''SPECIFIED BY THE USER'''
 inst_tol=10**(-14)
 pathname="HS_benchmark.py"
 ifsave=False
-device='pc'
 #t_array=np.sort(np.append(np.array([20, 50, 80, 110, 140, 170,  230]), np.append(np.linspace(200, 1000, 17, endpoint=True, dtype=int), np.array([1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000]))))
 #t_array=np.array([1700, 1800, 1900, 2000])
-t_array=np.array([20, 50, 80, 110, 140, 170, 200,  230])
+t_array=np.array([30])
 #t_array=np.sort(np.append(np.array([20, 50, 80, 110, 140, 170,  230]), np.linspace(200, 1000, 17, endpoint=True, dtype=int)))
 
-
-'''FANCY PREAMBLE TO MAKE BRAKET PACKAGE WORK NICELY'''
-#plt.rcParams.update({'text.usetex': True,'font.family': 'serif',})
-#plt.rc('text', usetex=True)
-#plt.rc('text.latex', preamble=r'\usepackage{braket}')
-
-'''DEFINE THE FIGURE AND DOMAIN'''
-import matplotlib as mpl
-mpl.rcParams.update(mpl.rcParamsDefault)
-
-
-plt.rcParams['font.size'] = 12
-fsz=14
-pts=100
-theta=np.linspace(-np.pi,np.pi,pts)
-xdata=np.cos(theta)
-
 '''DEFINE PATHS FOR FILES'''
-if device=='mac':
-    current_path = os.path.abspath(__file__)
-    coeff_path=current_path.replace(pathname, "")
-    save_path=os.path.join(coeff_path,"benchmark_data/")
-else:
-    current_path = os.path.abspath(__file__)
-    coeff_path=current_path.replace(pathname, "")
-    save_path=os.path.join(coeff_path,"benchmark_data\\")
-
+current_path=os.path.abspath(__file__)
+coeff_path=current_path.replace(pathname, "")
+save_path=os.path.join(coeff_path,"benchmark_data")
+save_path = os.path.normpath(save_path)
 
 def get_coeffs(filename):
     """
@@ -69,11 +59,7 @@ def get_coeffs(filename):
     n: the max degree of the Laurent polynomials
     """
     current_path = os.path.abspath(__file__)
-    if device=='mac':
-        coeff_path=coeff_path=current_path.replace("/HS_benchmark.py", "")
-    else:
-        coeff_path=current_path.replace("\HS_benchmark.py", "")
-        
+    coeff_path=os.path.dirname(current_path)
     abs_path=os.path.join(coeff_path,"csv_files", filename+".csv")
     with open(abs_path, 'r') as file:
         csv_reader = csv.reader(file)
@@ -127,13 +113,14 @@ def HS_FCN_CHECK(czlist, szlist, n, tau, data, xdata, subnorm=1, inst_tol=inst_t
     lpf.REAL_CHECK(czlist, n, theta=data, tol=inst_tol,fcnname='czlist')
     lpf.REAL_CHECK(-1j*szlist, n,theta=data,  tol=inst_tol, fcnname='szlist')
     obj=fl-targetfcn
+    
     normlist=np.sqrt(np.real(obj)**2+np.imag(obj)**2)
+    
     if np.max(normlist)>inst_tol:
-        print("Warning, polynmial is not an epsilon close approximation of exp(tau x)")
-        print(np.max(normlist))
-
-        
-def RUN_HS_INSTANCES(t_array, ifsave=False, subnorm=1):
+        print("Warning, polynomial is not an epsilon close approximation of exp(tau x)")
+        print("largest error in sample points is", np.max(normlist))
+   
+def RUN_HS_INSTANCES(t_array, ifsave=False, ifsubplots=False, subnorm=1):
     """
     Computes QSP parameters for each instance
     Specific to J-A polynomials:
@@ -162,15 +149,18 @@ def RUN_HS_INSTANCES(t_array, ifsave=False, subnorm=1):
     norms=np.zeros([len(t_array)])
     
     ###MAIN LOOP###
+    
     for tind, tau in enumerate(t_array):
         ###run the 'get coeffs' stuff
         filename="hsim_coeffs_epsi_" + "1.0e-14" + "_t_" + str(tau) 
-
+        print(filename)
         tczlist, tszlist, tn=get_coeffs(filename)
         tczlist, tszlist=tczlist*np.sqrt(2), tszlist*np.sqrt(2)
-        HS_FCN_CHECK(tczlist, tszlist, tn,tau, theta, xdata, subnorm=np.sqrt(2))
-        Plist, Qlist, E0, a, b, c, d,tn,  tDict=pf.PARAMETER_FIND(tczlist, -1j*tszlist, tn, theta,epsi=inst_tol,tDict={'tau':tau})
         
+        HS_FCN_CHECK(tczlist, tszlist, tn,tau, theta, xdata, subnorm=np.sqrt(2), plots=ifsubplots)
+        
+        Plist, Qlist, E0, a, b, c, d,tn,  tDict=pf.PARAMETER_FIND(tczlist, -1j*tszlist, tn, theta,epsi=inst_tol,tDict={'tau':tau}, plots=ifsubplots)
+        plt.show()
         times[tind]=tDict['soltime']
         iters[tind]=tDict['solit']
         ns[tind]=tDict['degree']
@@ -178,7 +168,7 @@ def RUN_HS_INSTANCES(t_array, ifsave=False, subnorm=1):
         fcnvals=np.exp(1j*tau*np.cos(theta))/np.sqrt(2)#lpf.LAUR_POLY_BUILD(a, tn, np.exp(1j*theta))+1j*lpf.LAUR_POLY_BUILD(b, tn, np.exp(1j*theta))
         norms[tind]=pf.NORM_EXTRACT_FROMP(Plist, Qlist, E0,a, b, tn, fcnvals, theta)
         print('approx error', norms[tind])        
-
+    
     AllInstDict['alltimes']=times
     AllInstDict['allits']=iters
     AllInstDict['alldegrees']=ns
@@ -186,10 +176,9 @@ def RUN_HS_INSTANCES(t_array, ifsave=False, subnorm=1):
     AllInstDict['evolutiontime']=t_array
 
     if ifsave==True:
-        with open(save_path+"HS_benchmark_data_to_tau_"+str(t_array[-1])+".csv", 'wb') as f:
+        with open(os.path.join(save_path,"HS_benchmark_data_to_tau_"+str(t_array[-1])+".csv"), 'wb') as f:
             pickle.dump(AllInstDict, f)
     return AllInstDict
-
 
 def HS_INSTANCE_PLOTS(t_array, ns, norms, iters,  ifsave=False, plotobj='NRits', withLSF=False):
     """
@@ -205,7 +194,7 @@ def HS_INSTANCE_PLOTS(t_array, ns, norms, iters,  ifsave=False, plotobj='NRits',
     plotobj: changes plot labels for NR itertion or solution time
     withLSF: option to add a least squares fit to the plot
     """
-    fig, axes = plt.subplots(2, figsize=(12,10))
+    fig, axes = plt.subplots(2, figsize=(16,16))
     ####NORM PLOT ON LOG-LOG SCALE###
     axes[0].scatter(np.log10(ns), np.log10(norms))
     axes[0].set_ylabel(r'$\log_{10}\left(||U_{QSP}-f||_{\infty}\right)$',fontsize=fsz)
@@ -218,8 +207,7 @@ def HS_INSTANCE_PLOTS(t_array, ns, norms, iters,  ifsave=False, plotobj='NRits',
         alpha=whole_fit[0]
         print('parameter standard deviations for linear fcn', np.sqrt(np.diag(whole_fit[1])))
         axes[0].plot(np.log10(ns), alpha[0]*np.log10(ns) + alpha[1], 'r', label=str(np.around(alpha[0], 2))+r'$\log_{10}(n)$'+str(np.around(alpha[1], 2)))
-        #axes[0].plot(np.log10(ns), alpha[0]*np.log10(ns), 'r', label=str(np.around(alpha[0], 2))+r'$\log_{10}(n)$')
-        axes[0].legend()
+        # axes[0].legend()
     else:
         secname="HS_scalingplot_to_"
         
@@ -227,20 +215,27 @@ def HS_INSTANCE_PLOTS(t_array, ns, norms, iters,  ifsave=False, plotobj='NRits',
     if plotobj=="NRits":
         axes[1].set_ylabel(r'Newton-Raphson iterations')
         axes[1].set_title('Newton-Raphson iterations vs polynomial degree')
-        axes[1].plot(ns, iters, color='blue',marker='1')
+        axes[1].plot(ns, iters,marker='1')
     else:
         axes[1].set_ylabel(r'Completion step time ($s$)', fontsize=fsz)
         axes[1].set_title('solution time vs polynomial degree')
-        axes[1].plot(ns, iters, color='blue',marker='1')
+        axes[1].plot(ns, iters,marker='1')
         
-    plt.legend()
+    # plt.legend()
     plt.suptitle('HS Polynomials')
     if ifsave==True:
         plt.savefig(save_path+secname+str(t_array[-1])+"wrtexpfcn.pdf")
+    if ifsave=="tikz":
+        print("legend is", str(np.around(alpha[0], 2))+r'$\log_{10}(n)$'+str(np.around(alpha[1], 2)))
+        tikzplotlib.save("HStikz.tex", flavor="context")
+        plt.show()
+    if ifsave=="pgl":
+        print("legend is", str(np.around(alpha[0], 2))+r'$\log_{10}(n)$'+str(np.around(alpha[1], 2)))
+        plt.savefig("file.pgf")
     else:
         plt.show()
     return
 
-#AllInstDict=RUN_HS_INSTANCES(t_array, ifsave=True)
-#print(AllInstDict['norms'])
-#HS_INSTANCE_PLOTS(t_array,  AllInstDict['alldegrees'],AllInstDict['norms'], iters=AllInstDict['alltimes'], ifsave=ifsave, withLSF=False,  plotobj='times',)
+# AllInstDict=RUN_HS_INSTANCES(t_array, ifsave=False, ifsubplots=True)
+# print(AllInstDict['norms'])
+# HS_INSTANCE_PLOTS(t_array,  AllInstDict['alldegrees'],AllInstDict['norms'], iters=AllInstDict['alltimes'], ifsave="none", withLSF=True,  plotobj='times',)

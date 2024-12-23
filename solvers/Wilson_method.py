@@ -39,12 +39,12 @@ def WILSON_GUESS(n, coeff):
     length n+1 np array, the coefficient list of the initial guess
     """
     zc=np.zeros(n)
-    #constc=np.random.randint(low=1, high=n, size=1)
+    # constc=np.random.randint(low=1, high=n, size=1)
     delta=0.01
     B=(3-2*delta)*(n+1)/(1-delta)
-    gammaguessabove=max(B*max(coeff), B*coeff[0]/(B-1))
-    print(gammaguessabove)
-    constc=np.random.randint(low=gammaguessabove, high=n*gammaguessabove, size=1)
+    gammaguessabove=B/(n+1)**2
+    
+    constc=np.random.randint(low=gammaguessabove, high=n**3*gammaguessabove, size=1)
     gam0=np.append(constc, zc)
     return gam0  
 
@@ -73,26 +73,6 @@ def T_c_COMP(gam, n, datatype):
     T=T1+T2
     c=T1@gam.T
     return T, c
-
-def GUESS(n, datatype=float):
-    """
-    Builds a guess from a root set away from the unit circle.
-    guess that the n roots of $\gamma$ are the integers r=1,2,....n
-
-    input: float n, degree of initial guess
-
-    return:
-    length n+1 np array, the coefficient list of the initial guess
-    """
-    root0=np.random.randint(low=1, high=int(n), size=n)
-    
-    gam0=np.array([1])
-    deg=0
-    for j in range(0, n):
-        gam0=POLY_MULT(gam0,np.array([root0[j],1]), datatype)
-        
-    return gam0
-
 
 def POLY_MULT(coeffa, coeffb, datatype=float):
     """
@@ -140,75 +120,6 @@ def l_inf_NORM_DIFF(coefflist1, coefflist2, n, z=np.exp(1j*np.linspace(-np.pi,np
     obj=vallist1-vallist2
     normlist=np.sqrt(np.real(obj)**2+np.imag(obj)**2)
     return np.max(normlist)
-
-def WILSON_LOOP(coeff, n, nu=10**(-16), init="Wilson", method='linsolve', datatype=complex):
-    """
-    RUNS THE WILSON SOLVER TO SOLVE A FEJER PROBLEM. Mostly obsolete but useful if one needs to test the performance of different linear solvers
-
-    inputs:
-    coeff: 2n+1 length np array, the coefficent list of the Laurent polynomial to solve
-    n: float, the degree of the Laurent polynomial
-    nu: float, the solver tolerance
-    init: string determining which initial guess is used.
-    --"Wilson" uses the default guess in WILSON_GUESS, a constant polynomial
-    --"Wilson2" uses WILSON_GUESS_ADJ, a high degree polynomial with constant term
-    --any other string uses GUESS to compute an initial guess
-    method: string determining which linear solver is used
-    --"linsolve" uses numpy's default linear solver
-    --"gauss-seidel" calls that method
-    --any other strin calls the conjugate gradient method
-    datatype: needs to match the datatype of coefff
-
-    output: the gamma solution and number of iterations to the solution
-    """
-    ###SET THE MAXIMUM NUMBER OF ITERATIONS###
-    i_max=np.int64(n)
-    itW=0
-    
-    ###GENERATE AN INITIAL GUESS AND COMPUTE T, c###
-    tprep0=time.perf_counter()
-    if init=="Wilson":
-        gam0=WILSON_GUESS(n)
-    elif init=="Wilson2":
-        gam0=WILSON_GUESS_ADJ(n)
-    else:
-        gam0=GUESS(n)
-
-    T, c=T_c_COMP(gam0, n, datatype)
-    
-    ###TRUNCATE THE COEFFICIENT LIST TO NON-NEGATIVE INDICES###
-    a=coeff[n:]
-    
-    tprep1=time.perf_counter()
-    #print('prep-loop costs', tprep1-tprep0)
-
-    ###MAIN LOOP###
-    for i in range(1, i_max+1):
-        if method=='linsolve':
-            tlinsolve0=time.perf_counter()
-            ngam=np.linalg.solve(T, c+a)
-            tlinsolve1=time.perf_counter()
-            
-        elif method=='gauss_seidel':
-            tlinsolve0=time.perf_counter()
-            ngam=gauss_seidel(T, c+a)
-            tlinsolve1=time.perf_counter()
-            
-        else:
-            tlinsolve0=time.perf_counter()
-            ngam=conjugate_gradient(T, c+a)
-            tlinsolve1=time.perf_counter()
-          
-        if l_inf_NORM_DIFF(ngam, gam0, n)<nu:
-            itW=i
-            print('Wilson solution found after ' + str(i) + ' iterations')
-            break
-        elif i==i_max:
-            print('Wilson solution not found after ' + str(i) + ' iterations')
-        else:
-            gam0=ngam
-            T, c=T_c_COMP(gam0, n, datatype)
-    return ngam,  itW
 
 def WILSON_LOOP_WDATA(coeff, n, nu=10**(-16), init="Wilson", method='linsolve', datatype=float):
     """
@@ -276,6 +187,69 @@ def WILSON_LOOP_WDATA(coeff, n, nu=10**(-16), init="Wilson", method='linsolve', 
             
     return ngam,  itW, initgam, nu
 
+def WILSON_LOOP_WCHECK(coeff, n, nu=10**(-14), init="Wilson", method='linsolve', datatype=float):
+    """
+    RUNS THE WILSON SOLVER TO SOLVE A FEJER PROBLEM. 
+
+    inputs:
+    coeff: 2n+1 length np array, the coefficent list of the Laurent polynomial to solve
+    n: float, the degree of the Laurent polynomial
+    nu: float, the solver tolerance
+    init: string determining which initial guess is used.
+    --"Wilson" uses the default guess in WILSON_GUESS, a constant polynomial
+    --"Wilson2" uses WILSON_GUESS_ADJ, a high degree polynomial with constant term
+    --any other string uses GUESS to compute an initial guess
+    method: string determining which linear solver is used
+    --"linsolve" uses numpy's default linear solver
+    --"gauss-seidel" calls that method
+    --any other strin calls the conjugate gradient method
+    datatype: needs to match the datatype of coefff
+
+    output: the gamma solution and number of iterations to the solution
+    """
+    ###SET THE MAXIMUM NUMBER OF ITERATIONS###
+    itW=0
+    i_max=100#np.int64(n)
+    
+    ###GENERATE AN INITIAL GUESS AND COMPUTE T, c###
+    if init=="Wilson":
+        gam0=WILSON_GUESS(n, coeff)
+    elif init=="Wilson2":
+        gam0=WILSON_GUESS_ADJ(n)
+    
+    initgam=gam0
+    T, c=T_c_COMP(gam0, n, datatype)
+    
+    ###TRUNCATE THE COEFFICIENT LIST TO NON-NEGATIVE INDICES###
+    a=coeff[n:]
+    
+    ##MAIN LOOP
+    for i in range(1, i_max+1):
+        if method=='linsolve':
+            ngam=np.linalg.solve(T, c+a)
+            
+        elif method=='gauss_seidel':
+            ngam=gauss_seidel(T, c+a)
+            
+        else:
+            ngam=conjugate_gradient(T, c+a)
+
+        ###COULD USE A SOMETIMES STRICTER CRITERIA OF SUCCESS: if abs(ngam-gam0).all()<nu:
+        if l_inf_NORM_DIFF(ngam, gam0, n)<nu:
+            itW=i
+            # print('Wilson solution found after ' + str(i) + ' iterations')
+            break
+        elif i==i_max:
+            print('Wilson solution not found after ' + str(i) + ' iterations')
+        else:
+            gam0=ngam
+            T, c=T_c_COMP(gam0, n, datatype)
+            
+        if i%100==0:
+            print('wilson step', i)
+    Ttilde, ctilde=T_c_COMP(ngam, n, datatype)    
+    return ngam,  itW, initgam, nu, Ttilde
+
 ###STACK EXCHANGE SOURCED LINEAR SOLVERS, SOMETIMES HAVE AN ADVANTAGE OVER np default solver###
 def jacobi(A, b, tolerance=1e-12, max_iterations=10000):
    ###code from Texas PGE 
@@ -293,8 +267,6 @@ def jacobi(A, b, tolerance=1e-12, max_iterations=10000):
             break
             
     return x
-
-
 
 def gauss_seidel(A, b, tolerance=1e-12, max_iterations=10000):
     

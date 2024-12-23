@@ -2,7 +2,6 @@
 """
 Created on Thu Jun 15 13:04:20 2023
 
-@author: Shawn Skelton
 Script with a few definitions of randomly generated pairs of Laurent polynomials
 """
 
@@ -15,7 +14,7 @@ def RAND_CHEBY_GENERATOR(n):
     Randomly generates n+1, n coefficients for each polynomial list.
     resulting Lauent polynomials are real-on-circle and reciprocal by definition
     resulting Lauent polynomials are real-on-circle and reciprocal/anti-reciprocal by definition
-    however constituents a, b are not even or odd wrt Chebyshev basis
+    constituent a, b are not even or odd wrt Chebyshev basis
 
     input:
     n: float, max degree of desired polynomial
@@ -32,9 +31,9 @@ def RAND_CHEBY_GENERATOR(n):
 def RAND_LIMIT_CHEBY_GENERATOR(n, nz=5):
     """
     Randomly generates n+1, n coefficients for each polynmial list, now restricts the number of non-zero coefficients.
-    The highest five non-zero coefficients are randomly selected for each of a, b and the rest are set to zero
+    The last nz non-zero coefficients are selected randomly for each of a, b and the rest are set to zero
     resulting Lauent polynomials are real-on-circle and reciprocal/anti-reciprocal by definition
-    however constituents a, b are not even or odd wrt Chebyshev basis
+    constituents a, b are not even or odd wrt Chebyshev basis
 
     input:
     n: float, max degree of desired polynomial
@@ -54,8 +53,7 @@ def RAND_LIMIT_CHEBY_GENERATOR(n, nz=5):
 def RAND_JUMBLE_CHEBY_GENERATOR(n, nz):
     """
     Randomly generates coefficient lists for Fourier series, restricts the number of non-zero coefficients.
-    The highest five non-zero coefficients are randomly selected for each of a, b and the rest are set to zero
-    
+    nz non-zero coefficients are randomly selected for each of a, b and the rest are set to zero
     resulting Lauent polynomials are real-on-circle and reciprocal/anti-reciprocal by definition
 
     input:
@@ -84,7 +82,8 @@ def RAND_JUMBLE_CHEBY_GENERATOR(n, nz):
 def RAND_JUMBLE_DECAY_CHEBY_GENERATOR(n, nz, decayrate=1.5):
     """
     Randomly generates coefficient lists for Fourier series, restricts the number of non-zero coefficients.
-    The highest five non-zero coefficients are randomly selected for each of a, b and the rest are set to zero
+    nz non-zero coefficients are randomly selected for each of a, b and the rest are set to zero
+    each subsequent coefficient is at least decayrate times smaller than the previous coefficient 
     
     resulting Lauent polynomials are real-on-circle and reciprocal/anti-reciprocal by definition
 

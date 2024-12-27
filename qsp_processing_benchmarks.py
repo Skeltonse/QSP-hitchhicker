@@ -28,7 +28,7 @@ device= torch.device( "cpu")
 
 '''SPECIFIED BY THE USER'''
 inst_tol=10**(-14)
-pathname="test-berntson.py"
+pathname="qsp_processing_benchmarks.py"
 ifsave=True
 
 '''FANCY PREAMBLE TO MAKE BRAKET PACKAGE WORK NICELY'''
@@ -242,7 +242,7 @@ def RUN_HS_INSTANCES(t_array, ifsave=False, subnorm=1):
     AllInstDict['evolutiontime']=t_array
 
     if ifsave==True:
-        with open(save_path+"HS_benchmark_data_to_tau_"+str(t_array[-1])+".csv", 'wb') as f:
+        with open(os.path.join(save_path,"HS_comp_data_to_tau_"+str(t_array[-1])+".csv"), 'wb') as f:
             pickle.dump(AllInstDict, f)
     return AllInstDict
 
@@ -396,18 +396,13 @@ def RUN_RANDOM_INSTANCES(t_array, ifsave=False):
     AllInstDict['optnorms']=optnorms
 
     if ifsave==True:
-        with open(save_path+"random_benchmark_data_to_"+str(t_array[-1])+".csv", 'wb') as f:
+        with open(os.path.join(save_path,"random_comp_data_to_"+str(t_array[-1])+".csv"), 'wb') as f:
             pickle.dump(AllInstDict, f)
             
     return AllInstDict
 
 
-#t_array=np.linspace(20, 100, 1, dtype=int)
-#t_array=np.array([1700, 1800, 1900, 2000])
-#t_array=np.array([20, 50, 80, 110, 140, 170, 200,  230])
 t_HS=np.sort(np.append(np.array([20, 50, 80, 110, 140, 170,  230]), np.append(np.linspace(200, 1000, 17, endpoint=True, dtype=int), np.array([1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000]))))
-# t_array=np.array([200, 500, 800])
-
 def HS_BENCHMARK(t_array=t_HS, ifsave=False):
     AllInstDict=RUN_HS_INSTANCES(t_array, ifsave=True)
     colors = ['#E69F00', '#56B4E9', '#009E73']
@@ -416,12 +411,13 @@ def HS_BENCHMARK(t_array=t_HS, ifsave=False):
     plt.plot(AllInstDict['alldegrees'], AllInstDict['alltimes'], color=colors[0], label="Wilson, avg error "+f"{np.average(AllInstDict['norms']):.2e}")
     plt.plot(AllInstDict['alldegrees'], AllInstDict['allffttimes'],  color=colors[1],label="FFT, avg error "+f"{np.average(AllInstDict['fftnorms']):.2e}")
     plt.plot(AllInstDict['alldegrees'], AllInstDict['allopttimes'],  color=colors[2], label="opt, avg error "+f"{np.average(AllInstDict['optnorms']):.2e}")
-    plt.legend()
+    
     plt.xlabel("degree")
     plt.ylabel("completion step time")
     if ifsave==True:
-        tikzplotlib.save("HSsolcomptikz.tex", flavor="context")
+        tikzplotlib.save(os.path.join(save_path, "HSsolcomptikz.tex"), flavor="context")
     else:
+        plt.legend()
         plt.show()
     print("wilson difference norm from fcn", np.average(AllInstDict['norms'],))
     print("wilson standard deviation", np.std(AllInstDict['norms'], ))
@@ -437,7 +433,6 @@ def HS_BENCHMARK(t_array=t_HS, ifsave=False):
 
 ###RANDOM TEST###
 t_RAND=np.sort(np.append(np.array([20, 50, 80, 110, 140, 170,  230]), np.linspace(200, 1000, 17, endpoint=True, dtype=int)))
-# t_array=np.array([20, 50, 80, 110, 140, 170,  230])
 def RANDOM_BENCHMARK(t_array=t_RAND, ifsave=False):
     AllInstDict=RUN_RANDOM_INSTANCES(t_array, ifsave=False)
     colors = ['#E69F00', '#56B4E9', '#009E73']
@@ -446,12 +441,13 @@ def RANDOM_BENCHMARK(t_array=t_RAND, ifsave=False):
     plt.plot(AllInstDict['alldegrees'], AllInstDict['alltimes'], color=colors[0],  label="Wilson, avg error "+f"{np.average(AllInstDict['norms']):.2e}")
     plt.plot(AllInstDict['alldegrees'], AllInstDict['allffttimes'],  color=colors[1],label="FFT, avg error "+f"{np.average(AllInstDict['fftnorms']):.2e}")
     plt.plot(AllInstDict['alldegrees'], AllInstDict['allopttimes'],  color=colors[2], label="opt, avg error "+f"{np.average(AllInstDict['optnorms']):.2e}")
-    plt.legend()
+    
     plt.xlabel("degree")
     plt.ylabel("completion step time")
     if ifsave==True:
-        tikzplotlib.save("randomsolcomptikz.tex", flavor="context")
+        tikzplotlib.save(os.path.join(save_path, "randomsolcomptikz.tex"), flavor="context")
     else:
+        plt.legend()
         plt.show()
 
     print("wilson difference norm from fcn", np.average(AllInstDict['norms'],))
@@ -463,5 +459,5 @@ def RANDOM_BENCHMARK(t_array=t_RAND, ifsave=False):
     print("opt", np.average(AllInstDict['optnorms'], ))
     print("opt dev", np.std(AllInstDict['optnorms'], ))
     return
-# HS_BENCHMARK(np.array([200, 500, 800]))
-RANDOM_BENCHMARK(np.array([20, 50, 80]))
+# HS_BENCHMARK(ifsave=True)
+RANDOM_BENCHMARK(ifsave=True)

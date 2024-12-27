@@ -37,11 +37,8 @@ xdata=np.cos(theta)
 '''SPECIFIED BY THE USER'''
 inst_tol=10**(-14)
 pathname="HS_benchmark.py"
-ifsave=False
-#t_array=np.sort(np.append(np.array([20, 50, 80, 110, 140, 170,  230]), np.append(np.linspace(200, 1000, 17, endpoint=True, dtype=int), np.array([1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000]))))
-#t_array=np.array([1700, 1800, 1900, 2000])
-t_array=np.array([30])
-#t_array=np.sort(np.append(np.array([20, 50, 80, 110, 140, 170,  230]), np.linspace(200, 1000, 17, endpoint=True, dtype=int)))
+ifsave=True
+t_array=np.sort(np.append(np.array([20, 50, 80, 110, 140, 170,  230]), np.append(np.linspace(200, 1000, 17, endpoint=True, dtype=int), np.array([1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000]))))
 
 '''DEFINE PATHS FOR FILES'''
 current_path=os.path.abspath(__file__)
@@ -153,7 +150,6 @@ def RUN_HS_INSTANCES(t_array, ifsave=False, ifsubplots=False, subnorm=1):
     for tind, tau in enumerate(t_array):
         ###run the 'get coeffs' stuff
         filename="hsim_coeffs_epsi_" + "1.0e-14" + "_t_" + str(tau) 
-        print(filename)
         tczlist, tszlist, tn=get_coeffs(filename)
         tczlist, tszlist=tczlist*np.sqrt(2), tszlist*np.sqrt(2)
         
@@ -166,8 +162,7 @@ def RUN_HS_INSTANCES(t_array, ifsave=False, ifsubplots=False, subnorm=1):
         ns[tind]=tDict['degree']
         AllInstDict[str(tn)]=tDict
         fcnvals=np.exp(1j*tau*np.cos(theta))/np.sqrt(2)#lpf.LAUR_POLY_BUILD(a, tn, np.exp(1j*theta))+1j*lpf.LAUR_POLY_BUILD(b, tn, np.exp(1j*theta))
-        norms[tind]=pf.NORM_EXTRACT_FROMP(Plist, Qlist, E0,a, b, tn, fcnvals, theta)
-        print('approx error', norms[tind])        
+        norms[tind]=pf.NORM_EXTRACT_FROMP(Plist, Qlist, E0,a, b, tn, fcnvals, theta)     
     
     AllInstDict['alltimes']=times
     AllInstDict['allits']=iters
@@ -224,10 +219,10 @@ def HS_INSTANCE_PLOTS(t_array, ns, norms, iters,  ifsave=False, plotobj='NRits',
     # plt.legend()
     plt.suptitle('HS Polynomials')
     if ifsave==True:
-        plt.savefig(save_path+secname+str(t_array[-1])+"wrtexpfcn.pdf")
+        plt.savefig(os.path.join(save_path, secname+str(t_array[-1])+"wrtexpfcn.pdf"))
     if ifsave=="tikz":
         print("legend is", str(np.around(alpha[0], 2))+r'$\log_{10}(n)$'+str(np.around(alpha[1], 2)))
-        tikzplotlib.save("HStikz.tex", flavor="context")
+        tikzplotlib.save(os.path.join(save_path, "HStikz.tex"), flavor="context")
         plt.show()
     if ifsave=="pgl":
         print("legend is", str(np.around(alpha[0], 2))+r'$\log_{10}(n)$'+str(np.around(alpha[1], 2)))
@@ -236,6 +231,6 @@ def HS_INSTANCE_PLOTS(t_array, ns, norms, iters,  ifsave=False, plotobj='NRits',
         plt.show()
     return
 
-# AllInstDict=RUN_HS_INSTANCES(t_array, ifsave=False, ifsubplots=True)
+AllInstDict=RUN_HS_INSTANCES(t_array, ifsave=ifsave, ifsubplots=False)
 # print(AllInstDict['norms'])
-# HS_INSTANCE_PLOTS(t_array,  AllInstDict['alldegrees'],AllInstDict['norms'], iters=AllInstDict['alltimes'], ifsave="none", withLSF=True,  plotobj='times',)
+HS_INSTANCE_PLOTS(t_array,  AllInstDict['alldegrees'],AllInstDict['norms'], iters=AllInstDict['alltimes'], ifsave=False, withLSF=True,  plotobj='times',)

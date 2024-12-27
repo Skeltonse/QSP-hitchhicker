@@ -26,8 +26,8 @@ ifsave=True
 #t_array=np.linspace(400, 2000, 30, dtype=int)
 # t_array=np.array([14, 16, 20], dtype=int)
 # t_array=np.linspace(20, 1000, 20, dtype=int)
-# t_array=np.linspace(200, 2000, 10, dtype=int)
-t_array=np.array([20,400])
+t_array=np.linspace(200, 2000, 20, dtype=int)
+# t_array=np.array([1001,1101, 1201, 1400, 1500, 1600, 1700, 1800])
 
 '''FANCY PREAMBLE TO MAKE BRAKET PACKAGE WORK NICELY'''
 import matplotlib as mpl
@@ -69,7 +69,7 @@ def RANDOM_FCN_CHECK(czlist, szlist, n, data, xdata):
     lpf.REAL_CHECK(szlist, n,theta=data,  tol=inst_tol, fcnname='szlist')
     plt.show()
 
-def RUN_RANDOM_INSTANCES(t_array, ifsave=False, ifsubplots=False):
+def RUN_RANDOM_INSTANCES(t_array, ifsave=False, ifsubplots=False, indexstring=""):
     """
     Computes QSP parameters for each instance.
     Specific to random polynomials:
@@ -101,18 +101,20 @@ def RUN_RANDOM_INSTANCES(t_array, ifsave=False, ifsubplots=False):
         tclist, tslist, nz=frand.RAND_JUMBLE_DECAY_CHEBY_GENERATOR(tn, nz)
         
         tclist, tslist, tczlist,tszlist, epsiapprox=frand.GET_NORMED(tclist, tslist, tn, subnorm=(2))
+        
         if ifsubplots==True:
             RANDOM_FCN_CHECK(tczlist, tszlist, tn, theta, xdata)
-        Plist, Qlist, E0, a, b, c, d, n, tDict=pf.PARAMETER_FIND(tczlist, tszlist, tn, theta, epsi=inst_tol, tDict={'nz':nz}, plots=ifsubplots)
-
+        Plist, Qlist, E0, a, b, c, d, tn, tDict=pf.PARAMETER_FIND(tczlist, tszlist, tn, theta, epsi=inst_tol, tDict={'nz':nz}, plots=ifsubplots)
+        
         times[tind]=tDict['soltime']
         iters[tind]=tDict['solit']
         ns[tind]=tDict['degree']
         epsis[tind]=epsiapprox
         AllInstDict[str(tn)]=tDict
+        
         fcnvals=lpf.LAUR_POLY_BUILD(a, tn, np.exp(1j*theta))+1j*lpf.LAUR_POLY_BUILD(b, tn, np.exp(1j*theta))
         norms[tind]=pf.NORM_EXTRACT_FROMP(Plist, Qlist, E0, a, b, tn,fcnvals, theta)
-
+    
     AllInstDict['alltimes']=times
     AllInstDict['allits']=iters
     AllInstDict['alldegrees']=ns
@@ -120,11 +122,10 @@ def RUN_RANDOM_INSTANCES(t_array, ifsave=False, ifsubplots=False):
     AllInstDict['epsiapprox']=epsis
 
     if ifsave==True:
-        with open(os.path.join(save_path, "random_benchmark_data_to_"+str(t_array[-1])+".csv"), 'wb') as f:
+        with open(os.path.join(save_path, "random"+indexstring+"_benchmark_data_to_"+str(t_array[-1])+".csv"), 'wb') as f:
             pickle.dump(AllInstDict, f)
             
     return AllInstDict
-
 
 def RANDOM_INSTANCE_PLOTS(ns, norms, iters, ifsave=False,  plotobj='NRits'):
     """
@@ -149,7 +150,7 @@ def RANDOM_INSTANCE_PLOTS(ns, norms, iters, ifsave=False,  plotobj='NRits'):
     axes[0].set_ylabel(r'$\log_{10}||U_{QSP}-f||_{\infty}$',fontsize=fsz)
     axes[0].set_xlabel(r'$\log_{10}(n)$', fontsize=fsz)
     axes[0].set_title('Max Error in QSP Value')
-    axes[0].legend()
+    
     ###ITERATIONS PLOT###
     axes[1].set_xlabel(r'Polynomial degree $n$', fontsize=fsz)
     axes[1].plot(ns, iters, color='blue',marker='1')
@@ -165,11 +166,13 @@ def RANDOM_INSTANCE_PLOTS(ns, norms, iters, ifsave=False,  plotobj='NRits'):
         plt.savefig(save_path+"random_scalingplot_to_"+str(t_array[-1])+".pdf")
     elif ifsave=="tikz":
         print("legend is", str(np.around(alpha[0], 2))+r'$\log_{10}(n)$'+str(np.around(alpha[1], 2)))
-        tikzplotlib.save("randomtikz.tex", flavor="context")
+        tikzplotlib.save(os.path.join(save_path, "randomtikz.tex"), flavor="context")
         plt.show()
     else:
+        axes[0].legend()
         plt.show()
     return 
 
-# AllInstDict=RUN_RANDOM_INSTANCES(t_array, ifsave=ifsave, ifsubplots=False)
-# RANDOM_INSTANCE_PLOTS(t_array, AllInstDict['norms'], AllInstDict['alltimes'], ifsave="tikz", plotobj='times')
+AllInstDict=RUN_RANDOM_INSTANCES(t_array, ifsave=ifsave, ifsubplots=False, indexstring="8")
+print(AllInstDict['norms'])
+RANDOM_INSTANCE_PLOTS(t_array, AllInstDict['norms'], AllInstDict['alltimes'], ifsave=False, plotobj='times')

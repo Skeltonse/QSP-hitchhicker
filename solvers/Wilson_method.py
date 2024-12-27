@@ -42,9 +42,15 @@ def WILSON_GUESS(n, coeff):
     # constc=np.random.randint(low=1, high=n, size=1)
     delta=0.01
     B=(3-2*delta)*(n+1)/(1-delta)
-    gammaguessabove=B/(n+1)**2
-    
-    constc=np.random.randint(low=gammaguessabove, high=n**3*gammaguessabove, size=1)
+    gammaguessbelow=B/(n+1)**2
+    gammaguessabove=np.abs(n*gammaguessbelow)
+    ###MAYBE REMOVE?###
+    if np.abs(gammaguessabove)<10**(-16):
+        print('need to adjust')
+        gammaguessbelow=1
+        gammaguessabove=n
+
+    constc=np.random.randint(low=1, high=10, size=1)
     gam0=np.append(constc, zc)
     return gam0  
 

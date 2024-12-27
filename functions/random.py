@@ -111,6 +111,9 @@ def RAND_JUMBLE_DECAY_CHEBY_GENERATOR(n, nz, decayrate=1.5):
         counter+=1
         if cindexrestrict==(n-2):
             break
+        if abs(chigh)<10**(-16):
+            print('smol c coeff',cindexrestrict )
+            break
 
     for i in range(0, nz):
         index=np.random.randint(sindexrestrict,n)
@@ -120,6 +123,9 @@ def RAND_JUMBLE_DECAY_CHEBY_GENERATOR(n, nz, decayrate=1.5):
         sindexrestrict=index
         counter+=1
         if sindexrestrict==(n-2):
+            break
+        if abs(shigh)<10**(-16):
+            print('smol s coeff',cindexrestrict )
             break
         
     ###DEFINE THE TWO COEFFICIENT LISTS WITH LEADING NON-ZERO TERMS###

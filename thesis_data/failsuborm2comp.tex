@@ -1,0 +1,104 @@
+% This file was created with tikzplotlib v0.10.1.
+\starttikzpicture
+
+\definecolor{cornflowerblue86180233}{RGB}{86,180,233}
+\definecolor{darkcyan0158115}{RGB}{0,158,115}
+\definecolor{darkgray176}{RGB}{176,176,176}
+\definecolor{orange2301590}{RGB}{230,159,0}
+
+\startaxis[
+tick align=outside,
+tick pos=left,
+x grid style={darkgray176},
+xlabel={degree},
+xmin=21.1, xmax=40.9,
+xtick style={color=black},
+xtick={20,22.5,25,27.5,30,32.5,35,37.5,40,42.5},
+xticklabels={
+  \(\displaystyle {20.0}\),
+  \(\displaystyle {22.5}\),
+  \(\displaystyle {25.0}\),
+  \(\displaystyle {27.5}\),
+  \(\displaystyle {30.0}\),
+  \(\displaystyle {32.5}\),
+  \(\displaystyle {35.0}\),
+  \(\displaystyle {37.5}\),
+  \(\displaystyle {40.0}\),
+  \(\displaystyle {42.5}\)
+},
+y grid style={darkgray176},
+ylabel={norm},
+ymin=-15.825398472392, ymax=-12.5166126034323,
+ytick style={color=black},
+ytick={-16,-15.5,-15,-14.5,-14,-13.5,-13,-12.5},
+yticklabels={
+  \(\displaystyle {\ensuremath{-}16.0}\),
+  \(\displaystyle {\ensuremath{-}15.5}\),
+  \(\displaystyle {\ensuremath{-}15.0}\),
+  \(\displaystyle {\ensuremath{-}14.5}\),
+  \(\displaystyle {\ensuremath{-}14.0}\),
+  \(\displaystyle {\ensuremath{-}13.5}\),
+  \(\displaystyle {\ensuremath{-}13.0}\),
+  \(\displaystyle {\ensuremath{-}12.5}\)
+}
+]
+\addplot [semithick, orange2301590]
+table {%
+22 -12.7236302144424
+22 -12.9371390406805
+24 -12.7548345929375
+24 -12.8576797571829
+26 -12.7592437118426
+26 -13.2706426394395
+30 -12.7170460320481
+34 -12.6670119611123
+34 -12.7071075095139
+36 -12.7950225769574
+38 -12.8801390512364
+38 -12.7036820704901
+38 -13.1706861909183
+38 -12.9602726175214
+40 -12.7962272780958
+40 -12.9777814328529
+};
+\addplot [semithick, cornflowerblue86180233]
+table {%
+22 -13.1410087816228
+22 -13.6667880402608
+24 -13.3782484199852
+24 -13.3805585024633
+26 -13.4167706751177
+26 -13.7642580720207
+30 -13.386388046124
+34 -13.2573604274313
+34 -13.3547066981173
+36 -13.4549026875726
+38 -13.2262359881698
+38 -13.5200208661568
+38 -13.850786049235
+38 -13.687418041788
+40 -13.3922969057345
+40 -13.6827481636545
+};
+\addplot [semithick, darkcyan0158115]
+table {%
+22 -15.5588522636451
+22 -15.5019496716492
+24 -15.4233417294513
+24 -15.6077539796113
+26 -15.469743229721
+26 -15.6130637194013
+30 -15.3026405110187
+34 -15.5950566275093
+34 -14.7284613466602
+36 -15.1484542765419
+38 -15.5657627027895
+38 -15.5243376908466
+38 -15.674999114712
+38 -15.5812846565662
+40 -15.4759334696808
+40 -13.7294315275967
+};
+\stopaxis
+
+\stoptikzpicture

@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.signal as sig
 
-def REAL_CHECK(coeff, n, theta=np.linspace(-np.pi,np.pi, 100),  tol=10**(-16), fcnname='function', giveprecision=False):
+def REAL_CHECK(coeff, n, theta=np.linspace(-np.pi,np.pi, 1000),  tol=10**(-16), fcnname='function', giveprecision=False):
     """
     CHECKS IF A LAURENT POLY IS REAL-ON-CIRLCE.
     Computes values on the unit circle, for Laurent polynomial with coefficients a of degree n.

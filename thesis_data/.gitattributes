@@ -1,0 +1,11 @@
+random0_benchmark_data_to_2000.csv filter=lfs diff=lfs merge=lfs -text
+random1_benchmark_data_to_2000.csv filter=lfs diff=lfs merge=lfs -text
+random2_benchmark_data_to_2000.csv filter=lfs diff=lfs merge=lfs -text
+random3_benchmark_data_to_2000.csv filter=lfs diff=lfs merge=lfs -text
+random4_benchmark_data_to_2000.csv filter=lfs diff=lfs merge=lfs -text
+random5_benchmark_data_to_2000.csv filter=lfs diff=lfs merge=lfs -text
+random6_benchmark_data_to_2000.csv filter=lfs diff=lfs merge=lfs -text
+random7_benchmark_data_to_2000.csv filter=lfs diff=lfs merge=lfs -text
+random8_benchmark_data_to_2000.csv filter=lfs diff=lfs merge=lfs -text
+random9_benchmark_data_to_2000.csv filter=lfs diff=lfs merge=lfs -text
+HS_comp_data_to_tau_2000.csv filter=lfs diff=lfs merge=lfs -text

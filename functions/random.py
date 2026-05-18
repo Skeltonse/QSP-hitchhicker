@@ -9,6 +9,7 @@ import numpy as np
 import functions.laur_poly_fcns as lpf 
 import parameter_finder as pf
 
+
 def RAND_CHEBY_GENERATOR(n):
     """
     Randomly generates n+1, n coefficients for each polynomial list.
@@ -79,7 +80,7 @@ def RAND_JUMBLE_CHEBY_GENERATOR(n, nz):
 
     return clist, slist
 
-def RAND_JUMBLE_DECAY_CHEBY_GENERATOR(n, nz, decayrate=1.5):
+def RAND_JUMBLE_DECAY_CHEBY_GENERATOR(n, nz, decayrate=11/10):
     """
     Randomly generates coefficient lists for Fourier series, restricts the number of non-zero coefficients.
     nz non-zero coefficients are randomly selected for each of a, b and the rest are set to zero
@@ -132,6 +133,74 @@ def RAND_JUMBLE_DECAY_CHEBY_GENERATOR(n, nz, decayrate=1.5):
     if n%2==0:
         clist[n]= chigh*np.random.rand(1)
         slist[n-1]=shigh*np.random.rand(1)
+        
+    elif n%2==1:
+        clist[n-1]=chigh*np.random.rand(1)
+        slist[n]=shigh*np.random.rand(1)
+    return clist, slist, counter+2
+
+def RAND_JUMBLE_LESSDECAY_CHEBY_GENERATOR(n, nz, decayrate=11/10):
+    """
+    Randomly generates coefficient lists for Fourier series, restricts the number of non-zero coefficients.
+    nz non-zero coefficients are randomly selected for each of a, b and the rest are set to zero
+    each subsequent coefficient is at least decayrate times smaller than the previous coefficient 
+    
+    resulting Lauent polynomials are real-on-circle and reciprocal/anti-reciprocal by definition
+
+    input:
+    n: float, max degree of desired polynomial
+    nz: the number of non-zero coefficients
+    """
+    chigh=n
+    shigh=n
+    cindexrestrict=0
+    sindexrestrict=0
+    counter=0
+    clist=np.zeros(n+1)
+    slist=np.zeros(n+1)
+
+    ###NOW ASSIGN RANDOMLY POSITIONED NON-ZERO COEFFICIENTS###
+    ##iterate over the number of non-zero coefficients in both lists##
+    quads=np.linspace(n/nz, n, num=nz, endpoint=True, dtype=int)
+    
+    for i in range(0, nz):
+        if (n-nz)<=0.1:
+            index=i
+            
+        else:
+            index=np.random.randint(cindexrestrict,quads[i])
+        clist[index]=chigh*np.random.rand(1)
+        
+        chigh=chigh/decayrate
+        cindexrestrict=index
+        counter+=1
+        if cindexrestrict==(n-2):
+            break
+        if abs(chigh)<10**(-16):
+            print('smol c coeff',cindexrestrict )
+            break
+
+    for i in range(0, nz):
+        if (n-nz)<=0.1:
+            index=i
+        else:
+            index=np.random.randint(sindexrestrict,quads[i])
+        slist[index]=shigh*np.random.rand(1)
+        counter+=1
+        shigh=shigh/decayrate
+        sindexrestrict=index
+        counter+=1
+        if sindexrestrict==(n-2):
+            break
+        if abs(shigh)<10**(-16):
+            print('smol s coeff',cindexrestrict )
+            break
+        
+    ###DEFINE THE TWO COEFFICIENT LISTS WITH LEADING NON-ZERO TERMS###
+    if n%2==0:
+        clist[n]= chigh*np.random.rand(1)
+        slist[n-1]=shigh*np.random.rand(1)
+        
     elif n%2==1:
         clist[n-1]=chigh*np.random.rand(1)
         slist[n]=shigh*np.random.rand(1)
@@ -155,11 +224,14 @@ def GET_NORMED(clist, slist,n,  subnorm=2):
     
     valsa, epsia=lpf.REAL_CHECK(czlist, n, tol=10**(-14), fcnname='czlist', giveprecision=True)
     valsb, epsib=lpf.REAL_CHECK(szlist, n, tol=10**(-14), fcnname='szlist', giveprecision=True)
-    maxvala=max(abs(valsa))
-    maxvalb=max(abs(valsb))
-    
-    prefactora=1/maxvala/(subnorm)
-    prefactorb=1/maxvalb/(subnorm)
+
+    norm=np.sqrt(valsa**2+valsb**2)
+    maxval=max(norm)
+    # maxvala=max(abs(valsa))
+    # maxvalb=max(abs(valsb))
+    newnorm=np.random.uniform()
+    prefactora=newnorm/maxval/(subnorm)
+    prefactorb=newnorm/maxval/(subnorm)
     
 
     return prefactora*clist, prefactorb*slist, prefactora*czlist, prefactorb*szlist, epsia+epsib

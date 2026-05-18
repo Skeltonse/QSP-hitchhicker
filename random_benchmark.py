@@ -22,28 +22,25 @@ import functions.random as frand
 '''SPECIFIED BY THE USER - TT TIB ABOUT HOW THIS SHOULD LOOK'''
 inst_tol=10**(-12)
 pathname="random_benchmark.py"
-ifsave=True
-#t_array=np.linspace(400, 2000, 30, dtype=int)
-# t_array=np.array([14, 16, 20], dtype=int)
-# t_array=np.linspace(20, 1000, 20, dtype=int)
+ifsave=False
 t_array=np.linspace(200, 2000, 20, dtype=int)
-# t_array=np.array([1001,1101, 1201, 1400, 1500, 1600, 1700, 1800])
+
 
 '''FANCY PREAMBLE TO MAKE BRAKET PACKAGE WORK NICELY'''
-import matplotlib as mpl
-mpl.rcParams.update(mpl.rcParamsDefault)
+# import matplotlib as mpl
+# mpl.rcParams.update(mpl.rcParamsDefault)
 
 '''DEFINE THE FIGURE AND DOMAIN'''
 plt.rcParams['font.size'] = 12
 fsz=14
-pts=20
+pts=200
 theta=np.linspace(-np.pi,np.pi,pts)
 xdata=np.cos(theta)
 
 '''DEFINE PATHS FOR FILES'''
 current_path=os.path.abspath(__file__)
 coeff_path=current_path.replace(pathname, "")
-save_path=os.path.join(coeff_path,"benchmark_data")
+save_path=os.path.join(coeff_path,"thesis_data")
 save_path = os.path.normpath(save_path)
 
 def RANDOM_FCN_CHECK(czlist, szlist, n, data, xdata):
@@ -68,6 +65,68 @@ def RANDOM_FCN_CHECK(czlist, szlist, n, data, xdata):
     lpf.REAL_CHECK(czlist, n, theta=data, tol=inst_tol,fcnname='czlist')
     lpf.REAL_CHECK(szlist, n,theta=data,  tol=inst_tol, fcnname='szlist')
     plt.show()
+
+def RUN_RANDOM_DECSPAR_INSTANCES(nz_array, n=400,ifsave=False, ifsubplots=False, indexstring=""):
+    """
+    Computes QSP parameters for each instance.
+    Specific to random polynomials:
+    nz is chosen as the maximum number of coefficents
+
+    inputs:
+    t_array: np array of degrees so ns kind of redundant
+    ifsave: True/False command determining whether to save parameter values
+    
+    Output: dictionary with keys for each instance, and keys for arrays with the following:
+    solution time,
+    number of NR iterations to the solution
+    polynomial degree
+    approximation precision
+    approximation norm
+    """
+    ###GENERATE ARRAYS TO SAVE RELEVANT DATA###
+    AllInstDict={}
+    DictLabels=t_array.astype(str)
+    times=np.zeros([len(nz_array)])
+    iters=np.zeros([len(nz_array)])
+    ns=np.zeros([len(nz_array)])
+    norms=np.zeros([len(nz_array)])
+    epsis=np.zeros([len(nz_array)])
+    sparsity=np.zeros([len(nz_array)])
+
+    ###MAIN LOOP###
+    for tind, nz in enumerate(nz_array):
+        
+        tclist, tslist, nz=frand.RAND_JUMBLE_LESSDECAY_CHEBY_GENERATOR(n, nz)
+        
+        tclist, tslist, tczlist,tszlist, epsiapprox=frand.GET_NORMED(tclist, tslist, n, subnorm=11/10)
+        
+        if ifsubplots==True:
+            RANDOM_FCN_CHECK(tczlist, tszlist, n, theta, xdata)
+        Plist, Qlist, E0, a, b, c, d, n, tDict=pf.PARAMETER_FIND(tczlist, tszlist, n, theta, epsi=inst_tol, tDict={'nz':nz}, plots=ifsubplots)
+        nonzeronuma=(np.where(abs(a)>10**(-13))[0])
+        nonzeronumb=(np.where(abs(b)>10**(-13))[0])
+        print(len(np.unique(np.concatenate((nonzeronumb,nonzeronuma),0))))
+        times[tind]=tDict['soltime']
+        iters[tind]=tDict['solit']
+        ns[tind]=tDict['degree']
+        epsis[tind]=epsiapprox
+        AllInstDict[str(n)]=tDict
+        
+        fcnvals=lpf.LAUR_POLY_BUILD(a, n, np.exp(1j*theta))+1j*lpf.LAUR_POLY_BUILD(b, n, np.exp(1j*theta))
+        norms[tind]=pf.NORM_EXTRACT_FROMP(Plist, Qlist, E0, a, b, n,fcnvals, theta)
+    
+    AllInstDict['alltimes']=times
+    AllInstDict['allits']=iters
+    AllInstDict['alldegrees']=ns
+    AllInstDict['norms']=norms
+    AllInstDict['epsiapprox']=epsis
+    AllInstDict['sparsity']=sparsity
+
+    if ifsave==True:
+        with open(os.path.join(save_path, "random_decspar"+indexstring+"_benchmark_data.csv"), 'wb') as f:
+            pickle.dump(AllInstDict, f)
+            
+    return AllInstDict
 
 def RUN_RANDOM_INSTANCES(t_array, ifsave=False, ifsubplots=False, indexstring=""):
     """
@@ -100,7 +159,7 @@ def RUN_RANDOM_INSTANCES(t_array, ifsave=False, ifsubplots=False, indexstring=""
         nz=max(np.int64(tn/15), 5)#max(10, np.int32(tn/25))
         tclist, tslist, nz=frand.RAND_JUMBLE_DECAY_CHEBY_GENERATOR(tn, nz)
         
-        tclist, tslist, tczlist,tszlist, epsiapprox=frand.GET_NORMED(tclist, tslist, tn, subnorm=(2))
+        tclist, tslist, tczlist,tszlist, epsiapprox=frand.GET_NORMED(tclist, tslist, tn, subnorm=(1))
         
         if ifsubplots==True:
             RANDOM_FCN_CHECK(tczlist, tszlist, tn, theta, xdata)
@@ -173,6 +232,10 @@ def RANDOM_INSTANCE_PLOTS(ns, norms, iters, ifsave=False,  plotobj='NRits'):
         plt.show()
     return 
 
-AllInstDict=RUN_RANDOM_INSTANCES(t_array, ifsave=ifsave, ifsubplots=False, indexstring="8")
-print(AllInstDict['norms'])
+AllInstDict=RUN_RANDOM_INSTANCES(t_array, ifsave=ifsave, ifsubplots=False, indexstring="9")
+
 RANDOM_INSTANCE_PLOTS(t_array, AllInstDict['norms'], AllInstDict['alltimes'], ifsave=False, plotobj='times')
+
+# spararray=np.linspace(400/15, 400, 20, dtype=int)
+# AllInstDict=RUN_RANDOM_DECSPAR_INSTANCES(spararray, ifsave=False, indexstring='0')
+# RANDOM_INSTANCE_PLOTS(spararray, AllInstDict['norms'], AllInstDict['alltimes'], ifsave=False,  plotobj='NRits')

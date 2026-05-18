@@ -26,10 +26,15 @@ from solvers.optimization_method import objective_torch, complex_conv_by_flip_co
 from solvers.FFT_method import complementary
 device= torch.device( "cpu")
 
+from nlft_qsp.poly import Polynomial
+from nlft_qsp.nlft import NonLinearFourierSequence
+from nlft_qsp.solvers import convolve_optimize, weiss, riemann_hilbert, half_cholesky, nlfft
+
+
 '''SPECIFIED BY THE USER'''
 inst_tol=10**(-14)
 pathname="qsp_processing_benchmarks.py"
-ifsave=True
+ifsave=False
 
 '''FANCY PREAMBLE TO MAKE BRAKET PACKAGE WORK NICELY'''
 plt.rcParams.update({'text.usetex': True,'font.family': 'serif',})
@@ -49,7 +54,7 @@ xdata=np.cos(theta)
 '''DEFINE PATHS FOR FILES'''
 current_path=os.path.abspath(__file__)
 coeff_path=current_path.replace(pathname, "")
-save_path=os.path.join(coeff_path,"benchmark_data")
+save_path=os.path.join(coeff_path,"thesis_data")
 save_path = os.path.normpath(save_path)
 
 def get_coeffs(filename):
@@ -153,6 +158,9 @@ def RUN_HS_INSTANCES(t_array, ifsave=False, subnorm=1):
     opttimes=np.zeros([len(t_array)])
     optiters=np.zeros([len(t_array)])
 
+    weisstimes=np.zeros([len(t_array)])
+    weissnorms=np.zeros([len(t_array)])
+
     iters=np.zeros([len(t_array)])
     ns=np.zeros([len(t_array)])
     norms=np.zeros([len(t_array)])
@@ -169,6 +177,7 @@ def RUN_HS_INSTANCES(t_array, ifsave=False, subnorm=1):
         HS_FCN_CHECK(tczlist, tszlist, tn,tau, theta, xdata, subnorm=np.sqrt(2))
         Plist, Qlist, E0, a, b, c, d,tn,  tDict=pf.PARAMETER_FIND(tczlist, -1j*tszlist, tn, theta,epsi=inst_tol,tDict={'tau':tau})
         
+        ###BernSuen
         t0=time.perf_counter()
         delta=1-1/np.sqrt(2)
         rd=(1/(1-delta))**(1/len(a))
@@ -222,12 +231,21 @@ def RUN_HS_INSTANCES(t_array, ifsave=False, subnorm=1):
         #final_vals.append(closure().item())
         optiters[tind]=total=optimizer.state[optimizer._params[0]]['n_iter']
         optnorms[tind]=closure().item()
+        print('testoptnorm', closure().item())
         
 
         AllInstDict[str(tn)]=tDict
         fcnvals=np.exp(1j*tau*np.cos(theta))/np.sqrt(2)#lpf.LAUR_POLY_BUILD(a, tn, np.exp(1j*theta))+1j*lpf.LAUR_POLY_BUILD(b, tn, np.exp(1j*theta))
         # norms[tind]=pf.NORM_EXTRACT_FROMP(Plist, Qlist, E0,a, b, tn, fcnvals, theta)
-        print('approx error', norms[tind])        
+        print('approx error', norms[tind])       
+
+        t0 = time.time()
+        bPoly=Polynomial(a+1j*b)
+        aPoly, cPoly = weiss.ratio(bPoly)
+        completion_err = (aPoly * aPoly.conjugate() + bPoly * bPoly.conjugate() - 1).l2_norm()
+        t1 = time.time()
+        weissnorms[tind]=completion_err
+        weisstimes[tind]=t1-t0 
 
     AllInstDict['alltimes']=times
     AllInstDict['allffttimes']=ffttimes
@@ -240,6 +258,11 @@ def RUN_HS_INSTANCES(t_array, ifsave=False, subnorm=1):
     AllInstDict['fftnorms']=fftnorms
     AllInstDict['optnorms']=optnorms
     AllInstDict['evolutiontime']=t_array
+
+    AllInstDict['weissnorms']=weissnorms**2
+    AllInstDict['weisstimes']=weisstimes
+
+
 
     if ifsave==True:
         with open(os.path.join(save_path,"HS_comp_data_to_tau_"+str(t_array[-1])+".csv"), 'wb') as f:
@@ -305,6 +328,9 @@ def RUN_RANDOM_INSTANCES(t_array, ifsave=False):
     fftnorms=np.zeros([len(t_array)])
     optnorms=np.zeros([len(t_array)])
 
+    weisstimes=np.zeros([len(t_array)])
+    weissnorms=np.zeros([len(t_array)])
+
     ###MAIN LOOP###
     for tind, tn in enumerate(t_array):
         # nz=np.int32(tn/25)#max(10, np.int32(tn/25))
@@ -332,7 +358,7 @@ def RUN_RANDOM_INSTANCES(t_array, ifsave=False):
         
         fftnorms[tind]=1-min(fftnorm)
 
-        ####cahnge to how we calculate norms for mine - completion step only###
+        ####change to how we calculate norms for mine - completion step only###
         norm=np.abs(lpf.LAUR_POLY_BUILD(a+1j*b, tn, np.exp(1j*theta)))**2+np.abs(lpf.LAUR_POLY_BUILD(c+1j*d, tn, np.exp(1j*theta)))**2
         norms[tind]=1-min(norm)
 
@@ -375,6 +401,16 @@ def RUN_RANDOM_INSTANCES(t_array, ifsave=False):
 
         fftlengths[tind]=fftlength
 
+        t0 = time.time()
+        bPoly=Polynomial(a+1j*b)
+        aPoly, cPoly = weiss.ratio(bPoly)
+        completion_err = (aPoly * aPoly.conjugate() + bPoly * bPoly.conjugate() - 1).l2_norm()
+        t1 = time.time()
+
+        weissnorms[tind]=completion_err
+        weisstimes[tind]=t1-t0 
+
+
         times[tind]=tDict['soltime']
         iters[tind]=tDict['solit']
         ns[tind]=tDict['degree']
@@ -394,15 +430,176 @@ def RUN_RANDOM_INSTANCES(t_array, ifsave=False):
     AllInstDict['alloptiters']=optiters
     AllInstDict['fftnorms']=fftnorms
     AllInstDict['optnorms']=optnorms
-
+    AllInstDict['weissnorms']=weissnorms**2
+    AllInstDict['weisstimes']=weisstimes
     if ifsave==True:
         with open(os.path.join(save_path,"random_comp_data_to_"+str(t_array[-1])+".csv"), 'wb') as f:
             pickle.dump(AllInstDict, f)
             
     return AllInstDict
 
+def RUN_RANDOM_INSTANCES_SUCC_ONLY(t_array, ifsave=False):
+    """
+    Computes QSP parameters for each instance.
+    Specific to random polynomials:
+    nz is chosen as the maximum number of coefficents
 
+    inputs:
+    t_array: np array of degrees so ns kind of redundant
+    ifsave: True/False command determining whether to save parameter values
+    
+    Output: dictionary with keys for each instance, and keys for arrays with the following:
+    solution time,
+    number of NR iterations to the solution
+    polynomial degree
+    approximation precision
+    approximation norm
+    """
+    ###GENERATE ARRAYS TO SAVE RELEVANT DATA###
+    AllInstDict={}
+    DictLabels=t_array.astype(str)
+
+    succdict={}
+    succcount=0
+
+    ###GET SUCCESSFUL INSTANCES###
+    for j in range(0, 3):
+        with open(os.path.join(save_path, "random"+str(j)+"_benchmark_data_to_"+str(2000)+".csv"), 'rb') as f:        allinstsdict=pickle.load(f)
+        succdegress=(allinstsdict['alldegrees'][np.where(allinstsdict['norms']<=10**(-10))])
+
+        for it, val in enumerate(succdegress):
+            succdict['succcount'+str(succcount)]=allinstsdict[str(int(val))]
+            succcount+=1
+
+    lendet=succcount
+    times=np.zeros([lendet])
+    iters=np.zeros([lendet])
+    ns=np.zeros([lendet])
+    norms=np.zeros([lendet])
+    epsis=np.zeros([lendet])
+
+    ffttimes=np.zeros([lendet])
+    fftlengths=np.zeros([lendet])
+
+    opttimes=np.zeros([lendet])
+    optiters=np.zeros([lendet])
+
+    fftnorms=np.zeros([lendet])
+    optnorms=np.zeros([lendet])
+
+    weisstimes=np.zeros([lendet])
+    weissnorms=np.zeros([lendet])
+        
+    ###MAIN LOOP###
+    for tind in range(succcount):
+        tn=succdict['succcount'+str(tind)]['degree']
+        
+        
+        a=succdict['succcount'+str(tind)]['a']
+        b=succdict['succcount'+str(tind)]['b']
+        
+        # print(succdict['succcount'+str(tind)].keys())
+        tDict=succdict['succcount'+str(tind)]
+        # Plist, Qlist, E0, a, b, c, d, n, tDict=pf.PARAMETER_FIND(tczlist, tszlist, tn, theta, epsi=inst_tol, tDict={'nz':nz}, plots=False)
+        
+
+        t0=time.perf_counter()
+        delta=1-1/(2)
+        rd=(1/(1-delta))**(1/len(a))
+        coefferror=inst_tol/3/(len(a)+1)/(2*len(a)+1)
+        fftlength=2/np.log(rd)*np.log(8*np.log(1/delta)/coefferror/(rd-1))
+        Q=complementary(torch.from_numpy(a+1j*b), np.int64(fftlength))
+        t1=time.perf_counter()
+        ffttimes[tind]=t1-t0
+
+        Ppoints=lpf.POLY_BUILD(a+1j*b, 2*tn, np.exp(1j*theta))
+        Qpoints=lpf.POLY_BUILD(Q.numpy(), 2*tn, np.exp(1j*theta))
+        fftnorm=np.abs(Ppoints)**2+np.abs(Qpoints)**2
+        
+        fftnorms[tind]=1-min(fftnorm)
+        print(tind, fftnorms)
+        ####change to how we calculate norms for mine - completion step only###
+        norm=np.abs(lpf.LAUR_POLY_BUILD(a+1j*b, tn, np.exp(1j*theta)))**2+np.abs(lpf.LAUR_POLY_BUILD(tDict['c']+1j*tDict['d'], tn, np.exp(1j*theta)))**2
+        norms[tind]=1-min(norm)
+
+
+        fftlengths[tind]=fftlength
+        times[tind]=tDict['soltime']
+        iters[tind]=tDict['solit']
+        ns[tind]=tDict['degree']
+        
+        ###optimization###
+        poly=torch.from_numpy(a+1j*b)
+
+        granularity = 2 ** 25
+        P = pad(poly, (0, granularity - poly.shape[0]))
+        ft = fft(P)
+        conv_p_negative = complex_conv_by_flip_conj(poly)*-1
+        conv_p_negative[poly.shape[0] - 1] = 1 - torch.norm(poly) ** 2
+        # Initializing Q randomly to start with
+        initial = torch.randn(poly.shape[0]*2, device=device, requires_grad=True)
+        initial = (initial / torch.norm(initial)).clone().detach().requires_grad_(True)
+
+        optimizer = torch.optim.LBFGS([initial], tolerance_change=1e-12, max_iter=10000)
+
+        t0 = time.time()
+
+        def closure():
+            optimizer.zero_grad()
+            loss = objective_torch(initial, conv_p_negative)
+            loss.backward()
+            return loss
+
+        optimizer.step(closure)
+
+        t1 = time.time()
+
+        total = t1-t0
+        opttimes[tind]=total
+        optiters[tind]=total=optimizer.state[optimizer._params[0]]['n_iter']
+        optnorms[tind]=closure().item()
+
+        fftlengths[tind]=fftlength
+
+        t0 = time.time()
+        bPoly=Polynomial(a+1j*b)
+        aPoly, cPoly = weiss.ratio(bPoly)
+        completion_err = (aPoly * aPoly.conjugate() + bPoly * bPoly.conjugate() - 1).l2_norm()
+        t1 = time.time()
+
+        weissnorms[tind]=completion_err
+        weisstimes[tind]=t1-t0 
+
+
+        times[tind]=tDict['soltime']
+        iters[tind]=tDict['solit']
+        ns[tind]=tDict['degree']
+        # epsis[tind]=epsiapprox
+        # AllInstDict[str(tn)]=tDict
+        # fcnvals=lpf.LAUR_POLY_BUILD(a, tn, np.exp(1j*theta))+1j*lpf.LAUR_POLY_BUILD(b, tn, np.exp(1j*theta))
+        # norms[tind]=pf.NORM_EXTRACT_FROMP(Plist, Qlist, E0, a, b, tn,fcnvals, theta)
+
+    AllInstDict['alltimes']=times
+    AllInstDict['allits']=iters
+    AllInstDict['alldegrees']=ns
+    AllInstDict['norms']=norms
+    AllInstDict['epsiapprox']=epsis
+    AllInstDict['allffttimes']=ffttimes
+    AllInstDict['allfftlengths']=fftlengths
+    AllInstDict['allopttimes']=opttimes
+    AllInstDict['alloptiters']=optiters
+    AllInstDict['fftnorms']=fftnorms
+    AllInstDict['optnorms']=optnorms
+    AllInstDict['weissnorms']=weissnorms**2
+    AllInstDict['weisstimes']=weisstimes
+    if ifsave==True:
+        with open(os.path.join(save_path,"random_comp_data_to_"+str(t_array[-1])+".csv"), 'wb') as f:
+            pickle.dump(AllInstDict, f)
+            
+    return AllInstDict
 t_HS=np.sort(np.append(np.array([20, 50, 80, 110, 140, 170,  230]), np.append(np.linspace(200, 1000, 17, endpoint=True, dtype=int), np.array([1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000]))))
+# t_HS=np.sort(np.array([20, 50, 80, 110, 140, 170,  230]))
+
 def HS_BENCHMARK(t_array=t_HS, ifsave=False):
     AllInstDict=RUN_HS_INSTANCES(t_array, ifsave=True)
     colors = ['#E69F00', '#56B4E9', '#009E73']
@@ -411,7 +608,8 @@ def HS_BENCHMARK(t_array=t_HS, ifsave=False):
     plt.plot(AllInstDict['alldegrees'], AllInstDict['alltimes'], color=colors[0], label="Wilson, avg error "+f"{np.average(AllInstDict['norms']):.2e}")
     plt.plot(AllInstDict['alldegrees'], AllInstDict['allffttimes'],  color=colors[1],label="FFT, avg error "+f"{np.average(AllInstDict['fftnorms']):.2e}")
     plt.plot(AllInstDict['alldegrees'], AllInstDict['allopttimes'],  color=colors[2], label="opt, avg error "+f"{np.average(AllInstDict['optnorms']):.2e}")
-    
+    plt.plot(AllInstDict['alldegrees'], AllInstDict['weisstimes'],  color=colors[2], label="weiss, avg error "+f"{np.average(AllInstDict['optnorms']):.2e}")
+
     plt.xlabel("degree")
     plt.ylabel("completion step time")
     if ifsave==True:
@@ -428,20 +626,28 @@ def HS_BENCHMARK(t_array=t_HS, ifsave=False):
 
     print("opt", np.average(AllInstDict['optnorms'], ))
     print("opt dev", np.std(AllInstDict['optnorms'], ))
+
+    print("Weiss", np.average(AllInstDict['weissnorms'], ))
+    print("Weiss dev", np.std(AllInstDict['weissnorms'], ))
     return
 
 
 ###RANDOM TEST###
 t_RAND=np.sort(np.append(np.array([20, 50, 80, 110, 140, 170,  230]), np.linspace(200, 1000, 17, endpoint=True, dtype=int)))
+# t_RAND=np.sort(np.array([20, 50, 80, 110, 140, 170,  230]))
+
 def RANDOM_BENCHMARK(t_array=t_RAND, ifsave=False):
-    AllInstDict=RUN_RANDOM_INSTANCES(t_array, ifsave=False)
+    AllInstDict=RUN_RANDOM_INSTANCES_SUCC_ONLY(t_array, ifsave=ifsave)
     colors = ['#E69F00', '#56B4E9', '#009E73']
     line_styles = ['-', '--', ':']
 
-    plt.plot(AllInstDict['alldegrees'], AllInstDict['alltimes'], color=colors[0],  label="Wilson, avg error "+f"{np.average(AllInstDict['norms']):.2e}")
-    plt.plot(AllInstDict['alldegrees'], AllInstDict['allffttimes'],  color=colors[1],label="FFT, avg error "+f"{np.average(AllInstDict['fftnorms']):.2e}")
-    plt.plot(AllInstDict['alldegrees'], AllInstDict['allopttimes'],  color=colors[2], label="opt, avg error "+f"{np.average(AllInstDict['optnorms']):.2e}")
-    
+    indexed=np.argsort(AllInstDict['alldegrees'])
+    xvals=AllInstDict['alldegrees'][indexed]
+    plt.plot(xvals, AllInstDict['alltimes'][indexed], color=colors[0],  label="Wilson, avg error "+f"{np.average(AllInstDict['norms']):.2e}")
+    plt.plot(xvals, AllInstDict['allffttimes'][indexed],  color=colors[1],label="FFT, avg error "+f"{np.average(AllInstDict['fftnorms']):.2e}")
+    plt.plot(xvals, AllInstDict['allopttimes'][indexed],  color=colors[2], label="opt, avg error "+f"{np.average(AllInstDict['optnorms']):.2e}")
+    plt.plot(xvals, AllInstDict['weisstimes'][indexed],  color=colors[2], label="weiss, avg error "+f"{np.average(AllInstDict['weissnorms']):.2e}")
+
     plt.xlabel("degree")
     plt.ylabel("completion step time")
     if ifsave==True:
@@ -458,6 +664,13 @@ def RANDOM_BENCHMARK(t_array=t_RAND, ifsave=False):
 
     print("opt", np.average(AllInstDict['optnorms'], ))
     print("opt dev", np.std(AllInstDict['optnorms'], ))
+
+    print("Weiss", np.average(AllInstDict['weissnorms'], ))
+    print("Weiss dev", np.std(AllInstDict['weissnorms'], ))
     return
+
+
 # HS_BENCHMARK(ifsave=True)
 RANDOM_BENCHMARK(ifsave=True)
+# RUN_HS_INSTANCES(np.array([20]), ifsave=False, subnorm=1)
+# HS_BENCHMARK(t_array=t_HS, ifsave=True)
